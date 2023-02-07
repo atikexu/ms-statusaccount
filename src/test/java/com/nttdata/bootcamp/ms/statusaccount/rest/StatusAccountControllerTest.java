@@ -4,6 +4,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import com.nttdata.bootcamp.ms.statusaccount.application.controller.StatusAccountController;
+import com.nttdata.bootcamp.ms.statusaccount.domain.dto.AccountDepWitDto;
 import com.nttdata.bootcamp.ms.statusaccount.domain.dto.AccountMovementDto;
 import com.nttdata.bootcamp.ms.statusaccount.domain.dto.BankAccount;
 import com.nttdata.bootcamp.ms.statusaccount.domain.dto.Credit;
@@ -23,6 +25,7 @@ import com.nttdata.bootcamp.ms.statusaccount.domain.dto.Debit;
 import com.nttdata.bootcamp.ms.statusaccount.domain.dto.Movement;
 import com.nttdata.bootcamp.ms.statusaccount.domain.dto.StatusAccountDto;
 import com.nttdata.bootcamp.ms.statusaccount.domain.service.StatusAccountService;
+import com.nttdata.bootcamp.ms.statusaccount.enums.TypeCurrency;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -61,6 +64,65 @@ public class StatusAccountControllerTest {
                 .expectStatus().isOk()
                 .returnResult(StatusAccountDto.class)
                 .getResponseBody();
+
+        StepVerifier.create(statusDataMono)
+                .expectNext(statusData)
+                .verifyComplete();
+    }
+	
+	@Test
+    void getProductIdAccountTest(){
+	    List<Movement> movement = Arrays.asList(new Movement("111",10f,TypeCurrency.SOLES,new Date(),"PRODUCTO",1,"1","d"));
+		List<BankAccount> account = Arrays.asList(new BankAccount(3,"0011-1235-3453-1245",5000.0f,"63dafea9d8a3387f0d8613f2","AHORRO"));
+		Customer customer = new Customer("63d17a46f4a3a745571eef09", "12345678", "PERSONAL", false, false, "Alex", "Apellido", "direccion", "ACTIVE", null, null);
+		AccountMovementDto statusData = new AccountMovementDto(customer, account, movement);
+		
+        Mono<AccountMovementDto> statusDataMono = Mono.just(new AccountMovementDto(customer, account,
+        		movement));
+
+        when (service.getProductIdAccount(statusDataMono.block().getAccounts().get(0).getAccountId()))
+                .thenReturn(statusDataMono);
+
+        webClient = WebTestClient.bindToController(new StatusAccountController(service))
+				.configureClient()
+				.baseUrl("/status/accountreport/"+statusDataMono.block().getAccounts().get(0).getAccountId())
+				.build();
+        
+        webClient.get()
+                .accept(MediaType.APPLICATION_NDJSON)
+                .exchange()
+                .expectStatus().isOk()
+                .returnResult(AccountMovementDto.class)
+                .getResponseBody();
+
+        StepVerifier.create(statusDataMono)
+                .expectNext(statusData)
+                .verifyComplete();
+    }
+	
+	@Test
+    void updateAccountDepositTest(){
+	    String message="";
+		BankAccount account = new BankAccount(3,"0011-1235-3453-1245",5000.0f,"63dafea9d8a3387f0d8613f2","AHORRO");
+		Customer customer = new Customer("63d17a46f4a3a745571eef09", "12345678", "PERSONAL", false, false, "Alex", "Apellido", "direccion", "ACTIVE", null, null);
+		AccountDepWitDto statusData = new AccountDepWitDto(customer, account, message);
+		
+        Mono<AccountDepWitDto> statusDataMono = Mono.just(new AccountDepWitDto(customer, account,
+        		message));
+
+        when (service.updateAccountDeposit(statusData.getAccount(),statusData.getAccount().getAccountId()))
+                .thenReturn(statusDataMono);
+
+        webClient = WebTestClient.bindToController(new StatusAccountController(service))
+				.configureClient()
+				.baseUrl("/status/accountdeposit/"+statusData.getAccount().getAccountId())
+				.build();
+        
+        webClient.put()
+                .accept(MediaType.APPLICATION_NDJSON)
+                .body(statusDataMono, AccountDepWitDto.class)
+                .exchange()
+                .expectStatus();
 
         StepVerifier.create(statusDataMono)
                 .expectNext(statusData)
